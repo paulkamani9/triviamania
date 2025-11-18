@@ -30,6 +30,10 @@ export {
 export type { Response, ScoreSummary } from './response';
 export { SCORING, calculatePoints } from './response';
 
+// Result type for error handling
+export type { Result, Success, Failure } from './result';
+export { ok, err } from './result';
+
 /**
  * Common utility types
  */
