@@ -3,6 +3,8 @@
  * Respects `prefers-reduced-motion` media query for accessibility
  */
 
+'use client';
+
 import { useSyncExternalStore } from 'react';
 
 /**

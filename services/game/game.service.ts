@@ -1,5 +1,13 @@
 import { supabase } from '@/lib/supabase';
-import { Question, Response, GameState, type Result, ok, err } from '@/types';
+import {
+  Question,
+  Response,
+  GameState,
+  QuestionDifficulty,
+  type Result,
+  ok,
+  err,
+} from '@/types';
 import { calculateScore } from '../utils/scoreCalculator';
 import { updatePlayerScore } from '../player';
 import { getRandomQuestions } from '../question';

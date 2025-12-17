@@ -11,6 +11,8 @@
  * ```
  */
 
+'use client';
+
 import { motion } from 'framer-motion';
 import { useReducedMotion } from '@/components/motion/useReducedMotion';
 
