@@ -159,10 +159,17 @@ export const useSinglePlayerStore = create((set, get) => ({
 
   // Time ran out
   timeUp: async () => {
-    const { selectedAnswer, sessionId, currentIndex, questions, showResult } =
-      get();
-    // Don't skip if already answered or already showing result
-    if (selectedAnswer !== null || showResult) return;
+    const {
+      selectedAnswer,
+      sessionId,
+      currentIndex,
+      questions,
+      showResult,
+      gameOver,
+    } = get();
+
+    // Don't skip if no session, already answered, showing result, or game over
+    if (!sessionId || selectedAnswer !== null || showResult || gameOver) return;
 
     get().clearTimer();
     playTimeoutSound(); // Play timeout sound
@@ -176,6 +183,9 @@ export const useSinglePlayerStore = create((set, get) => ({
       });
 
       const data = await response.json();
+
+      // Check again if session still exists after async call
+      if (!get().sessionId) return;
 
       if (!data.success) {
         // If it's a "wrong question index" error, the question was likely already handled
@@ -198,17 +208,11 @@ export const useSinglePlayerStore = create((set, get) => ({
         validating: false,
       });
 
-      set({
-        showResult: true,
-        correctAnswer,
-        score: totalScore,
-        validating: false,
-      });
-
       setTimeout(() => {
         // Check if session still exists (user might have left)
-        const { sessionId: currentSessionId, gameOver: isGameOver } = get();
-        if (!currentSessionId || isGameOver) return;
+        const { sessionId: currentSessionId, gameOver: currentGameOver } =
+          get();
+        if (!currentSessionId || currentGameOver) return;
 
         if (isGameOver) {
           get().endGame();
@@ -228,7 +232,10 @@ export const useSinglePlayerStore = create((set, get) => ({
       }, 2000);
     } catch (error) {
       console.error("Skip question error:", error);
-      set({ error: error.message, validating: false });
+      // Only set error if session still exists
+      if (get().sessionId) {
+        set({ error: error.message, validating: false });
+      }
     }
   },
 
@@ -268,12 +275,22 @@ export const useSinglePlayerStore = create((set, get) => ({
 
   // Timer
   startTimer: () => {
+    // IMPORTANT: Clear any existing timer first to prevent multiple intervals
+    get().clearTimer();
+
     const interval = setInterval(() => {
-      const time = get().timeRemaining;
-      if (time <= 1) {
+      const { timeRemaining, sessionId, gameOver } = get();
+
+      // Don't run if no session or game is over
+      if (!sessionId || gameOver) {
+        get().clearTimer();
+        return;
+      }
+
+      if (timeRemaining <= 1) {
         get().timeUp();
       } else {
-        set({ timeRemaining: time - 1 });
+        set({ timeRemaining: timeRemaining - 1 });
       }
     }, 1000);
     set({ timerInterval: interval });
