@@ -1,0 +1,130 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"); */
+
+@layer base {
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply bg-dark-950 text-dark-100 font-sans;
+  }
+
+  /* Focus styles for accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-dark-950;
+  }
+
+  /* Reduced motion support */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* Primary button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-6 py-3 min-h-[44px]
+           bg-primary-600 hover:bg-primary-500 active:bg-primary-700
+           text-white font-semibold rounded-xl
+           transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-primary-600;
+  }
+
+  /* Secondary button */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-6 py-3 min-h-[44px]
+           bg-dark-800 hover:bg-dark-700 active:bg-dark-900
+           text-dark-100 font-semibold rounded-xl border border-dark-600
+           transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Accent button (neon green) */
+  .btn-accent {
+    @apply inline-flex items-center justify-center px-6 py-3 min-h-[44px]
+           bg-accent-500 hover:bg-accent-400 active:bg-accent-600
+           text-dark-950 font-semibold rounded-xl
+           transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Ghost button */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center px-4 py-2 min-h-[44px]
+           hover:bg-dark-800 active:bg-dark-700
+           text-dark-200 font-medium rounded-lg
+           transition-all duration-200;
+  }
+
+  /* Card */
+  .card {
+    @apply bg-dark-900 border border-dark-700 rounded-2xl p-6;
+  }
+
+  /* Input */
+  .input {
+    @apply w-full px-4 py-3 min-h-[44px]
+           bg-dark-800 border border-dark-600 rounded-xl
+           text-dark-100 placeholder:text-dark-400
+           focus:border-primary-500 focus:ring-1 focus:ring-primary-500
+           transition-colors duration-200;
+  }
+
+  /* Timer colors */
+  .timer-safe {
+    @apply text-accent-400;
+  }
+
+  .timer-warning {
+    @apply text-yellow-400;
+  }
+
+  .timer-critical {
+    @apply text-red-500 animate-timer-pulse;
+  }
+
+  /* Answer states */
+  .answer-correct {
+    @apply bg-accent-500/20 border-accent-500 text-accent-400;
+  }
+
+  .answer-incorrect {
+    @apply bg-red-500/20 border-red-500 text-red-400;
+  }
+
+  .answer-selected {
+    @apply bg-primary-500/20 border-primary-500;
+  }
+
+  /* Screen reader only text */
+  .sr-only {
+    @apply absolute w-px h-px p-0 -m-px overflow-hidden whitespace-nowrap border-0;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  /* Skip to main content link for keyboard nav */
+  .skip-link {
+    @apply absolute -top-10 left-0 bg-primary-600 text-white px-4 py-2 z-50
+           focus:top-0 transition-all;
+  }
+}
+
+@layer utilities {
+  /* Respect reduced motion in utility animations */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-timer-pulse {
+      animation: none;
+    }
+  }
+}
