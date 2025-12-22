@@ -21,7 +21,7 @@ export default function SinglePlayerGame() {
   const location = useLocation();
   const navigate = useNavigate();
   const { category, difficulty } = location.state || {};
-  const { userId } = useUserStore();
+  const { userId, username } = useUserStore();
 
   const {
     currentQuestion,
@@ -43,9 +43,9 @@ export default function SinglePlayerGame() {
   } = useSinglePlayerStore();
 
   useEffect(() => {
-    startGame(category, difficulty, userId);
+    startGame(category, difficulty, userId, username);
     return () => reset();
-  }, [category, difficulty, userId, startGame, reset]);
+  }, [category, difficulty, userId, username, startGame, reset]);
 
   // Loading state
   if (loading) {
@@ -67,7 +67,7 @@ export default function SinglePlayerGame() {
           <p className="text-red-400 mb-4">{error}</p>
           <Button
             variant="primary"
-            onClick={() => startGame(category, difficulty, userId)}
+            onClick={() => startGame(category, difficulty, userId, username)}
           >
             Try Again
           </Button>
@@ -162,7 +162,7 @@ export default function SinglePlayerGame() {
             </Button>
             <Button
               variant="primary"
-              onClick={() => startGame(category, difficulty, userId)}
+              onClick={() => startGame(category, difficulty, userId, username)}
             >
               <RotateCcw className="w-4 h-4 mr-2" />
               Play Again

@@ -2,7 +2,11 @@ import { v4 as uuidv4 } from "uuid";
 import { GAME_CONFIG } from "../config/index.js";
 import { getRedis } from "./redis.js";
 import { fetchQuestions } from "./trivia.js";
-import { addUserPoints, recordGameHistory, ensureUserExists } from "./supabase.js";
+import {
+  addUserPoints,
+  recordGameHistory,
+  ensureUserExists,
+} from "./supabase.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Single Player Session Keys
@@ -52,7 +56,12 @@ export function calculateScore(difficulty, correct) {
  * @param {string|null} difficulty - Difficulty or null
  * @returns {Object} Session data with first question
  */
-export async function startSession(userId, username = null, category = null, difficulty = null) {
+export async function startSession(
+  userId,
+  username = null,
+  category = null,
+  difficulty = null
+) {
   const r = getRedis();
   const sessionId = uuidv4();
 
@@ -276,7 +285,8 @@ export async function endSession(sessionId) {
     throw new Error("Session not found");
   }
 
-  const { userId, username, score, questions, answers, category, difficulty } = session;
+  const { userId, username, score, questions, answers, category, difficulty } =
+    session;
 
   // Calculate stats
   const correctCount = Object.values(answers).filter((a) => a.correct).length;
@@ -288,7 +298,7 @@ export async function endSession(sessionId) {
     try {
       // Ensure user exists first with their username
       await ensureUserExists(userId, username);
-      
+
       await addUserPoints(userId, score);
       await recordGameHistory({
         userId,
@@ -299,12 +309,18 @@ export async function endSession(sessionId) {
         totalQuestions,
       });
       leaderboardUpdated = true;
-      console.log(`✅ Leaderboard updated for user ${userId}: +${score} points`);
+      console.log(
+        `✅ Leaderboard updated for user ${userId}: +${score} points`
+      );
     } catch (error) {
       console.error("Failed to persist single player score:", error.message);
     }
   } else {
-    console.log(`ℹ️ Score not saved: userId=${userId}, isAnon=${userId?.startsWith("anon_")}, score=${score}`);
+    console.log(
+      `ℹ️ Score not saved: userId=${userId}, isAnon=${userId?.startsWith(
+        "anon_"
+      )}, score=${score}`
+    );
   }
 
   // Clean up session from Redis

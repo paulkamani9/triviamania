@@ -36,14 +36,14 @@ export const useSinglePlayerStore = create((set, get) => ({
   timerInterval: null,
 
   // Initialize game via server
-  startGame: async (category, difficulty, userId) => {
+  startGame: async (category, difficulty, userId, username) => {
     set({ loading: true, error: null, gameOver: false, finalResults: null });
 
     try {
       const response = await fetch("/api/singleplayer/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, category, difficulty }),
+        body: JSON.stringify({ userId, username, category, difficulty }),
       });
 
       const data = await response.json();
