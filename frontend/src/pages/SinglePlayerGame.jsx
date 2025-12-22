@@ -1,7 +1,15 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, X, RotateCcw, Home, Trophy } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  X,
+  RotateCcw,
+  Home,
+  Trophy,
+  Loader2,
+} from "lucide-react";
 import { useSinglePlayerStore } from "../store/singlePlayerStore";
 import { useUserStore } from "../store/userStore";
 import { GAME_CONFIG } from "../constants";
@@ -28,6 +36,7 @@ export default function SinglePlayerGame() {
     gameOver,
     correctAnswer,
     finalResults,
+    validating,
     startGame,
     submitAnswer,
     reset,
@@ -211,44 +220,155 @@ export default function SinglePlayerGame() {
         <div className="space-y-3">
           <AnimatePresence mode="wait">
             {currentQuestion.choices.map((choice, index) => {
+              const isSelected = choice === selectedAnswer;
+              const isCorrect = choice === correctAnswer;
+              const isWrong = isSelected && !isCorrect && showResult;
+
+              // Determine button state classes
               let stateClass = "";
               if (showResult) {
-                if (choice === correctAnswer) {
+                if (isCorrect) {
                   stateClass = "answer-correct";
-                } else if (choice === selectedAnswer) {
+                } else if (isWrong) {
                   stateClass = "answer-incorrect";
                 }
-              } else if (choice === selectedAnswer) {
-                stateClass = "answer-selected";
+              } else if (isSelected && validating) {
+                stateClass = "answer-validating";
               }
+
+              // Disabled when validating or showing result
+              const isDisabled =
+                validating || showResult || selectedAnswer !== null;
 
               return (
                 <motion.button
                   key={choice}
                   initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  onClick={() => !showResult && submitAnswer(choice)}
-                  disabled={showResult}
-                  className={`w-full p-4 text-left rounded-xl border-2 border-dark-600 
-                    bg-dark-800 hover:bg-dark-700 hover:border-dark-500
-                    transition-all disabled:cursor-default
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    scale: showResult && isCorrect ? [1, 1.02, 1] : 1,
+                  }}
+                  transition={{
+                    delay: index * 0.1,
+                    scale: { duration: 0.3, ease: "easeOut" },
+                  }}
+                  onClick={() => !isDisabled && submitAnswer(choice)}
+                  disabled={isDisabled}
+                  className={`w-full p-4 text-left rounded-xl border-2 
+                    transition-all duration-200
+                    ${isDisabled && !isSelected ? "opacity-60" : ""}
+                    ${
+                      validating && isSelected
+                        ? "border-primary-500 bg-primary-500/10 animate-pulse"
+                        : "border-dark-600 bg-dark-800"
+                    }
+                    ${
+                      !isDisabled
+                        ? "hover:bg-dark-700 hover:border-dark-500"
+                        : ""
+                    }
+                    ${isDisabled ? "cursor-default" : "cursor-pointer"}
                     ${stateClass}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{choice}</span>
-                    {showResult && choice === correctAnswer && (
-                      <Check className="w-5 h-5 text-accent-400" />
+
+                    {/* Validating spinner */}
+                    {validating && isSelected && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.5 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                      >
+                        <Loader2 className="w-5 h-5 text-primary-400 animate-spin" />
+                      </motion.div>
                     )}
-                    {showResult &&
-                      choice === selectedAnswer &&
-                      choice !== correctAnswer && (
+
+                    {/* Correct answer checkmark */}
+                    {showResult && isCorrect && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 500,
+                          damping: 15,
+                        }}
+                      >
+                        <Check className="w-5 h-5 text-accent-400" />
+                      </motion.div>
+                    )}
+
+                    {/* Wrong answer X */}
+                    {showResult && isWrong && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0 }}
+                        animate={{
+                          opacity: 1,
+                          scale: 1,
+                          rotate: [0, -10, 10, 0],
+                        }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 500,
+                          damping: 15,
+                        }}
+                      >
                         <X className="w-5 h-5 text-red-400" />
-                      )}
+                      </motion.div>
+                    )}
                   </div>
                 </motion.button>
               );
             })}
+          </AnimatePresence>
+
+          {/* Validating overlay message */}
+          <AnimatePresence>
+            {validating && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="text-center py-2"
+              >
+                <p className="text-primary-400 text-sm font-medium animate-pulse">
+                  Checking your answer...
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Result feedback message */}
+          <AnimatePresence>
+            {showResult && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className={`text-center py-3 rounded-xl ${
+                  selectedAnswer === correctAnswer
+                    ? "bg-accent-500/20 border border-accent-500/50"
+                    : "bg-red-500/20 border border-red-500/50"
+                }`}
+              >
+                <motion.p
+                  initial={{ y: 10 }}
+                  animate={{ y: 0 }}
+                  className={`text-lg font-bold ${
+                    selectedAnswer === correctAnswer
+                      ? "text-accent-400"
+                      : "text-red-400"
+                  }`}
+                >
+                  {selectedAnswer === correctAnswer
+                    ? "🎉 Correct!"
+                    : selectedAnswer === null
+                    ? "⏰ Time's up!"
+                    : "❌ Wrong!"}
+                </motion.p>
+              </motion.div>
+            )}
           </AnimatePresence>
         </div>
       </div>

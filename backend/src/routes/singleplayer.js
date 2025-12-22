@@ -15,7 +15,7 @@ const router = Router();
  */
 router.post("/start", async (req, res) => {
   try {
-    const { userId, category, difficulty } = req.body;
+    const { userId, username, category, difficulty } = req.body;
 
     if (!userId) {
       return res.status(400).json({
@@ -24,7 +24,7 @@ router.post("/start", async (req, res) => {
       });
     }
 
-    const session = await startSession(userId, category, difficulty);
+    const session = await startSession(userId, username, category, difficulty);
 
     res.json({
       success: true,

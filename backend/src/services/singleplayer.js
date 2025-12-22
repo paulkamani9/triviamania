@@ -2,7 +2,7 @@ import { v4 as uuidv4 } from "uuid";
 import { GAME_CONFIG } from "../config/index.js";
 import { getRedis } from "./redis.js";
 import { fetchQuestions } from "./trivia.js";
-import { addUserPoints, recordGameHistory } from "./supabase.js";
+import { addUserPoints, recordGameHistory, ensureUserExists } from "./supabase.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Single Player Session Keys
@@ -47,11 +47,12 @@ export function calculateScore(difficulty, correct) {
 /**
  * Start a new single player game session
  * @param {string} userId - The user's ID
+ * @param {string|null} username - The user's display name
  * @param {number|null} category - Category ID or null
  * @param {string|null} difficulty - Difficulty or null
  * @returns {Object} Session data with first question
  */
-export async function startSession(userId, category = null, difficulty = null) {
+export async function startSession(userId, username = null, category = null, difficulty = null) {
   const r = getRedis();
   const sessionId = uuidv4();
 
@@ -65,6 +66,7 @@ export async function startSession(userId, category = null, difficulty = null) {
   const session = {
     sessionId,
     userId,
+    username: username || null,
     category: category || "Any",
     difficulty: difficulty || "Any",
     questions,
@@ -274,7 +276,7 @@ export async function endSession(sessionId) {
     throw new Error("Session not found");
   }
 
-  const { userId, score, questions, answers, category, difficulty } = session;
+  const { userId, username, score, questions, answers, category, difficulty } = session;
 
   // Calculate stats
   const correctCount = Object.values(answers).filter((a) => a.correct).length;
@@ -284,6 +286,9 @@ export async function endSession(sessionId) {
   let leaderboardUpdated = false;
   if (userId && !userId.startsWith("anon_") && score > 0) {
     try {
+      // Ensure user exists first with their username
+      await ensureUserExists(userId, username);
+      
       await addUserPoints(userId, score);
       await recordGameHistory({
         userId,
@@ -294,9 +299,12 @@ export async function endSession(sessionId) {
         totalQuestions,
       });
       leaderboardUpdated = true;
+      console.log(`✅ Leaderboard updated for user ${userId}: +${score} points`);
     } catch (error) {
       console.error("Failed to persist single player score:", error.message);
     }
+  } else {
+    console.log(`ℹ️ Score not saved: userId=${userId}, isAnon=${userId?.startsWith("anon_")}, score=${score}`);
   }
 
   // Clean up session from Redis

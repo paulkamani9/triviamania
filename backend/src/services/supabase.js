@@ -96,10 +96,47 @@ export async function upsertUser({ id, googleId, email, username }) {
 }
 
 /**
+ * Ensure user exists in database - create if not exists
+ */
+export async function ensureUserExists(userId, username = null) {
+  if (!supabaseAdmin || !userId) return null;
+
+  // First check if user exists
+  const existing = await getUserById(userId);
+  if (existing) return existing;
+
+  // Create new user
+  const { data, error } = await supabaseAdmin
+    .from("users")
+    .insert({
+      id: userId,
+      username: username || `Player ${userId.slice(-6)}`,
+      total_points: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating user:", error.message);
+    return null;
+  }
+  return data;
+}
+
+/**
  * Add points to user
  */
 export async function addUserPoints(userId, points) {
   if (!supabaseAdmin || !userId) return null;
+
+  // Ensure user exists first
+  const user = await ensureUserExists(userId);
+  if (!user) {
+    console.error("Could not ensure user exists:", userId);
+    return null;
+  }
 
   const { data, error } = await supabaseAdmin.rpc("increment_user_points", {
     user_id: userId,
@@ -107,17 +144,15 @@ export async function addUserPoints(userId, points) {
   });
 
   if (error) {
-    // Fallback: fetch and update manually if RPC doesn't exist
-    const user = await getUserById(userId);
-    if (user) {
-      const { data: updated, error: updateError } = await supabaseAdmin
-        .from("users")
-        .update({
-          total_points: (user.total_points || 0) + points,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", userId)
-        .select()
+    // Fallback: update manually if RPC doesn't exist
+    const { data: updated, error: updateError } = await supabaseAdmin
+      .from("users")
+      .update({
+        total_points: (user.total_points || 0) + points,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", userId)
+      .select()
         .single();
 
       if (updateError) {

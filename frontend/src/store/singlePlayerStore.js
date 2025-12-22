@@ -27,6 +27,7 @@ export const useSinglePlayerStore = create((set, get) => ({
   showResult: false,
   gameOver: false,
   correctAnswer: null,
+  validating: false, // True while waiting for server response
 
   // Results
   finalResults: null,
@@ -82,7 +83,7 @@ export const useSinglePlayerStore = create((set, get) => ({
     if (selectedAnswer !== null) return; // Already answered
 
     get().clearTimer();
-    set({ selectedAnswer: answer });
+    set({ selectedAnswer: answer, validating: true });
 
     try {
       const response = await fetch(`/api/singleplayer/${sessionId}/answer`, {
@@ -108,6 +109,7 @@ export const useSinglePlayerStore = create((set, get) => ({
 
       set({
         showResult: true,
+        validating: false,
         score: totalScore,
         correctAnswer,
       });
@@ -133,7 +135,7 @@ export const useSinglePlayerStore = create((set, get) => ({
       }, 2000);
     } catch (error) {
       console.error("Submit answer error:", error);
-      set({ error: error.message });
+      set({ error: error.message, validating: false });
     }
   },
 
@@ -143,7 +145,7 @@ export const useSinglePlayerStore = create((set, get) => ({
     if (selectedAnswer !== null) return;
 
     get().clearTimer();
-    set({ selectedAnswer: null });
+    set({ selectedAnswer: null, validating: true });
 
     try {
       const response = await fetch(`/api/singleplayer/${sessionId}/skip`, {
@@ -164,6 +166,7 @@ export const useSinglePlayerStore = create((set, get) => ({
         showResult: true,
         correctAnswer,
         score: totalScore,
+        validating: false,
       });
 
       setTimeout(() => {
@@ -185,7 +188,7 @@ export const useSinglePlayerStore = create((set, get) => ({
       }, 2000);
     } catch (error) {
       console.error("Skip question error:", error);
-      set({ error: error.message });
+      set({ error: error.message, validating: false });
     }
   },
 
@@ -264,6 +267,7 @@ export const useSinglePlayerStore = create((set, get) => ({
       gameOver: false,
       correctAnswer: null,
       finalResults: null,
+      validating: false,
     });
   },
 }));
