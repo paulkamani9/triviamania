@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Check, X, RotateCcw, Home } from "lucide-react";
+import { ArrowLeft, Check, X, RotateCcw, Home, Trophy } from "lucide-react";
 import { useSinglePlayerStore } from "../store/singlePlayerStore";
+import { useUserStore } from "../store/userStore";
 import { GAME_CONFIG } from "../constants";
 import PageTransition from "../components/PageTransition";
 import Button from "../components/Button";
@@ -12,10 +13,12 @@ export default function SinglePlayerGame() {
   const location = useLocation();
   const navigate = useNavigate();
   const { category, difficulty } = location.state || {};
+  const { userId } = useUserStore();
 
   const {
-    questions,
+    currentQuestion,
     currentIndex,
+    totalQuestions,
     score,
     timeRemaining,
     loading,
@@ -23,17 +26,17 @@ export default function SinglePlayerGame() {
     selectedAnswer,
     showResult,
     gameOver,
+    correctAnswer,
+    finalResults,
     startGame,
     submitAnswer,
     reset,
   } = useSinglePlayerStore();
 
   useEffect(() => {
-    startGame(category, difficulty);
+    startGame(category, difficulty, userId);
     return () => reset();
-  }, [category, difficulty, startGame, reset]);
-
-  const currentQuestion = questions[currentIndex];
+  }, [category, difficulty, userId, startGame, reset]);
 
   // Loading state
   if (loading) {
@@ -55,7 +58,7 @@ export default function SinglePlayerGame() {
           <p className="text-red-400 mb-4">{error}</p>
           <Button
             variant="primary"
-            onClick={() => startGame(category, difficulty)}
+            onClick={() => startGame(category, difficulty, userId)}
           >
             Try Again
           </Button>
@@ -66,11 +69,10 @@ export default function SinglePlayerGame() {
 
   // Game over state
   if (gameOver) {
-    const totalQuestions = questions.length;
-    const correctCount = useSinglePlayerStore
-      .getState()
-      .answers.filter((a) => a.correct).length;
-    const percentage = Math.round((correctCount / totalQuestions) * 100);
+    const correctCount = finalResults?.correctCount || 0;
+    const total = finalResults?.totalQuestions || totalQuestions || 20;
+    const percentage = finalResults?.percentage || Math.round((correctCount / total) * 100);
+    const leaderboardUpdated = finalResults?.leaderboardUpdated || false;
 
     // Star rating
     let stars = 0;
@@ -119,7 +121,7 @@ export default function SinglePlayerGame() {
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-red-400">
-                  {totalQuestions - correctCount}
+                  {total - correctCount}
                 </p>
                 <p className="text-xs text-dark-400">Wrong</p>
               </div>
@@ -130,6 +132,17 @@ export default function SinglePlayerGame() {
                 <p className="text-xs text-dark-400">Accuracy</p>
               </div>
             </div>
+            {leaderboardUpdated && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="mt-4 pt-4 border-t border-dark-700 flex items-center justify-center gap-2 text-accent-400"
+              >
+                <Trophy className="w-4 h-4" />
+                <span className="text-sm">Score added to leaderboard!</span>
+              </motion.div>
+            )}
           </motion.div>
 
           <div className="flex gap-3">
@@ -139,7 +152,7 @@ export default function SinglePlayerGame() {
             </Button>
             <Button
               variant="primary"
-              onClick={() => startGame(category, difficulty)}
+              onClick={() => startGame(category, difficulty, userId)}
             >
               <RotateCcw className="w-4 h-4 mr-2" />
               Play Again
@@ -166,7 +179,7 @@ export default function SinglePlayerGame() {
           <div className="text-center">
             <p className="text-sm text-dark-400">Question</p>
             <p className="font-display font-bold">
-              {currentIndex + 1} / {questions.length}
+              {currentIndex + 1} / {totalQuestions}
             </p>
           </div>
           <div className="text-right">
@@ -199,7 +212,7 @@ export default function SinglePlayerGame() {
             {currentQuestion.choices.map((choice, index) => {
               let stateClass = "";
               if (showResult) {
-                if (choice === currentQuestion.correctAnswer) {
+                if (choice === correctAnswer) {
                   stateClass = "answer-correct";
                 } else if (choice === selectedAnswer) {
                   stateClass = "answer-incorrect";
@@ -223,12 +236,12 @@ export default function SinglePlayerGame() {
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{choice}</span>
-                    {showResult && choice === currentQuestion.correctAnswer && (
+                    {showResult && choice === correctAnswer && (
                       <Check className="w-5 h-5 text-accent-400" />
                     )}
                     {showResult &&
                       choice === selectedAnswer &&
-                      choice !== currentQuestion.correctAnswer && (
+                      choice !== correctAnswer && (
                         <X className="w-5 h-5 text-red-400" />
                       )}
                   </div>

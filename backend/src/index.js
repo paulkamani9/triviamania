@@ -9,6 +9,7 @@ import { initSupabase } from "./services/supabase.js";
 import { setupSocketHandlers } from "./socket/index.js";
 import healthRoutes from "./routes/health.js";
 import leaderboardRoutes from "./routes/leaderboard.js";
+import singleplayerRoutes from "./routes/singleplayer.js";
 
 const app = express();
 const httpServer = createServer(app);
@@ -26,6 +27,7 @@ app.use(express.json());
 
 app.use("/health", healthRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
+app.use("/api/singleplayer", singleplayerRoutes);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Socket.io Setup

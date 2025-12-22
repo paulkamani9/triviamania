@@ -1,18 +1,24 @@
 import { create } from "zustand";
-import { GAME_CONFIG, CATEGORIES, DIFFICULTIES } from "../constants";
+import { GAME_CONFIG } from "../constants";
 
-// Single player game store (separate from multiplayer)
+// Single player game store (server-side validated)
 export const useSinglePlayerStore = create((set, get) => ({
+  // Session state
+  sessionId: null,
+
   // Game state
-  questions: [],
+  questions: [], // Store questions as they come (for reference)
   currentIndex: 0,
+  totalQuestions: 0,
   score: 0,
-  answers: [],
   timeRemaining: GAME_CONFIG.QUESTION_TIME_LIMIT,
 
   // Config
   category: null,
   difficulty: null,
+
+  // Current question
+  currentQuestion: null,
 
   // UI state
   loading: false,
@@ -20,53 +26,47 @@ export const useSinglePlayerStore = create((set, get) => ({
   selectedAnswer: null,
   showResult: false,
   gameOver: false,
+  correctAnswer: null,
+
+  // Results
+  finalResults: null,
 
   // Timer
   timerInterval: null,
 
-  // Initialize game
-  startGame: async (category, difficulty) => {
-    set({ loading: true, error: null, gameOver: false });
+  // Initialize game via server
+  startGame: async (category, difficulty, userId) => {
+    set({ loading: true, error: null, gameOver: false, finalResults: null });
 
     try {
-      // Fetch questions from OpenTriviaDB (client-side for single player)
-      const params = new URLSearchParams({
-        amount: String(GAME_CONFIG.QUESTIONS_PER_GAME),
+      const response = await fetch("/api/singleplayer/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId, category, difficulty }),
       });
-      if (category) params.set("category", String(category));
-      if (difficulty) params.set("difficulty", difficulty);
 
-      const response = await fetch(`https://opentdb.com/api.php?${params}`);
       const data = await response.json();
 
-      if (data.response_code !== 0 || !data.results?.length) {
-        throw new Error("Failed to fetch questions");
+      if (!data.success) {
+        throw new Error(data.error || "Failed to start game");
       }
 
-      // Decode and shuffle questions
-      const questions = data.results.map((q) => ({
-        question: decodeHTML(q.question),
-        type: q.type,
-        difficulty: q.difficulty,
-        category: decodeHTML(q.category),
-        correctAnswer: decodeHTML(q.correct_answer),
-        choices: shuffleArray([
-          decodeHTML(q.correct_answer),
-          ...q.incorrect_answers.map(decodeHTML),
-        ]),
-      }));
+      const { sessionId, totalQuestions, currentQuestion, timeLimit } = data.data;
 
       set({
-        questions,
+        sessionId,
+        totalQuestions,
         currentIndex: 0,
+        currentQuestion,
         score: 0,
-        answers: [],
-        category,
-        difficulty,
+        category: data.data.category,
+        difficulty: data.data.difficulty,
         loading: false,
         selectedAnswer: null,
         showResult: false,
-        timeRemaining: GAME_CONFIG.QUESTION_TIME_LIMIT,
+        correctAnswer: null,
+        timeRemaining: timeLimit,
+        questions: [currentQuestion], // Track questions for reference
       });
 
       get().startTimer();
@@ -75,63 +75,143 @@ export const useSinglePlayerStore = create((set, get) => ({
     }
   },
 
-  // Submit answer
-  submitAnswer: (answer) => {
-    const { questions, currentIndex, score, answers, selectedAnswer } = get();
+  // Submit answer via server
+  submitAnswer: async (answer) => {
+    const { sessionId, currentIndex, selectedAnswer, questions } = get();
     if (selectedAnswer !== null) return; // Already answered
 
     get().clearTimer();
+    set({ selectedAnswer: answer });
 
-    const question = questions[currentIndex];
-    const correct = answer === question.correctAnswer;
-    const points = correct ? 100 : 0;
+    try {
+      const response = await fetch(`/api/singleplayer/${sessionId}/answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionIndex: currentIndex, answer }),
+      });
 
-    set({
-      selectedAnswer: answer,
-      showResult: true,
-      score: score + points,
-      answers: [...answers, { answer, correct, points }],
-    });
+      const data = await response.json();
 
-    // Auto-advance after delay
-    setTimeout(() => {
-      get().nextQuestion();
-    }, 2000);
+      if (!data.success) {
+        throw new Error(data.error);
+      }
+
+      const { correct, points, totalScore, correctAnswer, isGameOver, nextQuestion } = data.data;
+
+      set({
+        showResult: true,
+        score: totalScore,
+        correctAnswer,
+      });
+
+      // Auto-advance after delay
+      setTimeout(() => {
+        if (isGameOver) {
+          get().endGame();
+        } else {
+          // Add next question to our list
+          const updatedQuestions = [...questions, nextQuestion];
+          set({
+            currentIndex: currentIndex + 1,
+            currentQuestion: nextQuestion,
+            questions: updatedQuestions,
+            selectedAnswer: null,
+            showResult: false,
+            correctAnswer: null,
+            timeRemaining: GAME_CONFIG.QUESTION_TIME_LIMIT,
+          });
+          get().startTimer();
+        }
+      }, 2000);
+    } catch (error) {
+      console.error("Submit answer error:", error);
+      set({ error: error.message });
+    }
   },
 
   // Time ran out
-  timeUp: () => {
-    const { selectedAnswer, answers } = get();
+  timeUp: async () => {
+    const { selectedAnswer, sessionId, currentIndex, questions } = get();
     if (selectedAnswer !== null) return;
 
     get().clearTimer();
+    set({ selectedAnswer: null });
 
-    set({
-      selectedAnswer: null,
-      showResult: true,
-      answers: [...answers, { answer: null, correct: false, points: 0 }],
-    });
+    try {
+      const response = await fetch(`/api/singleplayer/${sessionId}/skip`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionIndex: currentIndex }),
+      });
 
-    setTimeout(() => {
-      get().nextQuestion();
-    }, 2000);
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error);
+      }
+
+      const { correctAnswer, isGameOver, nextQuestion, totalScore } = data.data;
+
+      set({
+        showResult: true,
+        correctAnswer,
+        score: totalScore,
+      });
+
+      setTimeout(() => {
+        if (isGameOver) {
+          get().endGame();
+        } else {
+          const updatedQuestions = [...questions, nextQuestion];
+          set({
+            currentIndex: currentIndex + 1,
+            currentQuestion: nextQuestion,
+            questions: updatedQuestions,
+            selectedAnswer: null,
+            showResult: false,
+            correctAnswer: null,
+            timeRemaining: GAME_CONFIG.QUESTION_TIME_LIMIT,
+          });
+          get().startTimer();
+        }
+      }, 2000);
+    } catch (error) {
+      console.error("Skip question error:", error);
+      set({ error: error.message });
+    }
   },
 
-  // Next question
-  nextQuestion: () => {
-    const { currentIndex, questions } = get();
-    const nextIndex = currentIndex + 1;
+  // End game and get final results
+  endGame: async () => {
+    const { sessionId } = get();
+    get().clearTimer();
 
-    if (nextIndex >= questions.length) {
-      set({ gameOver: true, showResult: false });
-    } else {
-      set({
-        currentIndex: nextIndex,
-        selectedAnswer: null,
-        showResult: false,
-        timeRemaining: GAME_CONFIG.QUESTION_TIME_LIMIT,
+    try {
+      const response = await fetch(`/api/singleplayer/${sessionId}/end`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
       });
-      get().startTimer();
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error);
+      }
+
+      set({
+        gameOver: true,
+        showResult: false,
+        finalResults: data.data,
+        score: data.data.finalScore,
+      });
+    } catch (error) {
+      console.error("End game error:", error);
+      // Still mark as game over even on error
+      set({
+        gameOver: true,
+        showResult: false,
+        error: error.message,
+      });
     }
   },
 
@@ -160,32 +240,22 @@ export const useSinglePlayerStore = create((set, get) => ({
   reset: () => {
     get().clearTimer();
     set({
+      sessionId: null,
       questions: [],
       currentIndex: 0,
+      totalQuestions: 0,
       score: 0,
-      answers: [],
       timeRemaining: GAME_CONFIG.QUESTION_TIME_LIMIT,
+      category: null,
+      difficulty: null,
+      currentQuestion: null,
       loading: false,
       error: null,
       selectedAnswer: null,
       showResult: false,
       gameOver: false,
+      correctAnswer: null,
+      finalResults: null,
     });
   },
 }));
-
-// Helpers
-function decodeHTML(html) {
-  const txt = document.createElement("textarea");
-  txt.innerHTML = html;
-  return txt.value;
-}
-
-function shuffleArray(array) {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}

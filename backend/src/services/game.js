@@ -11,6 +11,7 @@ import {
 } from "./redis.js";
 import { fetchQuestions } from "./trivia.js";
 import { addUserPoints, recordGameHistory } from "./supabase.js";
+import { calculateScore } from "./singleplayer.js";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Room Status Constants
@@ -339,12 +340,8 @@ export async function submitAnswer(roomCode, userId, questionIndex, answer) {
   const question = room.questions[questionIndex];
   const correct = answer === question.correctAnswer;
 
-  // Calculate score (faster = more points)
-  let score = 0;
-  if (correct) {
-    const timeBonus = Math.max(0, GAME_CONFIG.QUESTION_TIME_LIMIT - elapsed);
-    score = Math.round(100 + timeBonus * 10); // Base 100 + up to 150 bonus
-  }
+  // Calculate score based on difficulty (Easy=25, Medium=50, Hard=100)
+  const score = calculateScore(question.difficulty, correct);
 
   // Update answers and scores
   userAnswers[questionIndex] = { answer, correct, score, answeredAt: now };
@@ -411,8 +408,8 @@ export async function finalizeGame(roomCode) {
   // Persist scores to Supabase for authenticated users
   const persistPromises = room.players.map(async (player) => {
     const score = room.scores[player.id] || 0;
-    // Only persist if it looks like a real user ID (UUID format)
-    if (player.id && player.id.includes("-") && score > 0) {
+    // Only persist if it's NOT an anonymous user and has points
+    if (player.id && !player.id.startsWith("anon_") && score > 0) {
       await addUserPoints(player.id, score);
       await recordGameHistory({
         userId: player.id,
