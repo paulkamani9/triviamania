@@ -51,7 +51,8 @@ export const useSinglePlayerStore = create((set, get) => ({
         throw new Error(data.error || "Failed to start game");
       }
 
-      const { sessionId, totalQuestions, currentQuestion, timeLimit } = data.data;
+      const { sessionId, totalQuestions, currentQuestion, timeLimit } =
+        data.data;
 
       set({
         sessionId,
@@ -96,7 +97,14 @@ export const useSinglePlayerStore = create((set, get) => ({
         throw new Error(data.error);
       }
 
-      const { correct, points, totalScore, correctAnswer, isGameOver, nextQuestion } = data.data;
+      const {
+        correct,
+        points,
+        totalScore,
+        correctAnswer,
+        isGameOver,
+        nextQuestion,
+      } = data.data;
 
       set({
         showResult: true,

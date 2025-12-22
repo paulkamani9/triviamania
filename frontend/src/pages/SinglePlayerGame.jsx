@@ -71,7 +71,8 @@ export default function SinglePlayerGame() {
   if (gameOver) {
     const correctCount = finalResults?.correctCount || 0;
     const total = finalResults?.totalQuestions || totalQuestions || 20;
-    const percentage = finalResults?.percentage || Math.round((correctCount / total) * 100);
+    const percentage =
+      finalResults?.percentage || Math.round((correctCount / total) * 100);
     const leaderboardUpdated = finalResults?.leaderboardUpdated || false;
 
     // Star rating
