@@ -228,16 +228,12 @@ export async function skipQuestion(sessionId, questionIndex) {
 
   const { questions, currentIndex, answers } = session;
 
-  if (questionIndex !== currentIndex) {
-    throw new Error("Wrong question index");
-  }
-
-  // Check if already answered
+  // Be more lenient - if the question was already answered/skipped, just return current state
   if (answers[questionIndex] !== undefined) {
-    // Already handled, just return next question
+    // Already handled, return current game state
     const isGameOver = session.currentIndex >= questions.length;
     return {
-      correctAnswer: questions[questionIndex].correctAnswer,
+      correctAnswer: questions[questionIndex]?.correctAnswer || "N/A",
       isGameOver,
       nextQuestion: isGameOver
         ? null
@@ -245,6 +241,24 @@ export async function skipQuestion(sessionId, questionIndex) {
             questions[session.currentIndex],
             session.currentIndex
           ),
+      totalScore: session.score,
+    };
+  }
+
+  // Allow skipping if questionIndex matches current OR is one behind (race condition)
+  if (questionIndex !== currentIndex && questionIndex !== currentIndex - 1) {
+    throw new Error("Wrong question index");
+  }
+
+  // If we're trying to skip an already-passed question, just return current state
+  if (questionIndex < currentIndex) {
+    const isGameOver = currentIndex >= questions.length;
+    return {
+      correctAnswer: questions[questionIndex]?.correctAnswer || "N/A",
+      isGameOver,
+      nextQuestion: isGameOver
+        ? null
+        : sanitizeQuestion(questions[currentIndex], currentIndex),
       totalScore: session.score,
     };
   }

@@ -153,15 +153,13 @@ export async function addUserPoints(userId, points) {
       })
       .eq("id", userId)
       .select()
-        .single();
+      .single();
 
-      if (updateError) {
-        console.error("Error adding points:", updateError.message);
-        return null;
-      }
-      return updated;
+    if (updateError) {
+      console.error("Error adding points:", updateError.message);
+      return null;
     }
-    return null;
+    return updated;
   }
   return data;
 }

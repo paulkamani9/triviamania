@@ -322,55 +322,74 @@ export default function SinglePlayerGame() {
               );
             })}
           </AnimatePresence>
+        </div>
 
-          {/* Validating overlay message */}
-          <AnimatePresence>
-            {validating && (
+        {/* Floating Result Overlay - appears smoothly over content */}
+        <AnimatePresence>
+          {(validating || showResult) && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+              style={{ top: "30%" }}
+            >
               <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="text-center py-2"
-              >
-                <p className="text-primary-400 text-sm font-medium animate-pulse">
-                  Checking your answer...
-                </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Result feedback message */}
-          <AnimatePresence>
-            {showResult && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className={`text-center py-3 rounded-xl ${
-                  selectedAnswer === correctAnswer
-                    ? "bg-accent-500/20 border border-accent-500/50"
-                    : "bg-red-500/20 border border-red-500/50"
+                initial={{ scale: 0.5, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.8, opacity: 0, y: -20 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 25,
+                  duration: 0.3,
+                }}
+                className={`px-8 py-4 rounded-2xl shadow-2xl backdrop-blur-md ${
+                  validating
+                    ? "bg-dark-800/90 border border-primary-500/50"
+                    : selectedAnswer === correctAnswer
+                    ? "bg-accent-500/30 border-2 border-accent-400"
+                    : selectedAnswer === null
+                    ? "bg-yellow-500/30 border-2 border-yellow-400"
+                    : "bg-red-500/30 border-2 border-red-400"
                 }`}
               >
-                <motion.p
-                  initial={{ y: 10 }}
-                  animate={{ y: 0 }}
-                  className={`text-lg font-bold ${
-                    selectedAnswer === correctAnswer
-                      ? "text-accent-400"
-                      : "text-red-400"
-                  }`}
-                >
-                  {selectedAnswer === correctAnswer
-                    ? "🎉 Correct!"
-                    : selectedAnswer === null
-                    ? "⏰ Time's up!"
-                    : "❌ Wrong!"}
-                </motion.p>
+                {validating ? (
+                  <div className="flex items-center gap-3">
+                    <Loader2 className="w-6 h-6 text-primary-400 animate-spin" />
+                    <p className="text-primary-300 font-semibold text-lg">
+                      Checking...
+                    </p>
+                  </div>
+                ) : (
+                  <motion.div
+                    initial={{ scale: 0.8 }}
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 0.3 }}
+                    className="text-center"
+                  >
+                    <p
+                      className={`text-2xl font-bold ${
+                        selectedAnswer === correctAnswer
+                          ? "text-accent-300"
+                          : selectedAnswer === null
+                          ? "text-yellow-300"
+                          : "text-red-300"
+                      }`}
+                    >
+                      {selectedAnswer === correctAnswer
+                        ? "🎉 Correct!"
+                        : selectedAnswer === null
+                        ? "⏰ Time's up!"
+                        : "❌ Wrong!"}
+                    </p>
+                  </motion.div>
+                )}
               </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </PageTransition>
   );

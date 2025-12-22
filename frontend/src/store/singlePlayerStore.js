@@ -1,5 +1,11 @@
 import { create } from "zustand";
 import { GAME_CONFIG } from "../constants";
+import {
+  playCorrectSound,
+  playWrongSound,
+  playTimeoutSound,
+  playClickSound,
+} from "../utils/sounds";
 
 // Single player game store (server-side validated)
 export const useSinglePlayerStore = create((set, get) => ({
@@ -83,6 +89,7 @@ export const useSinglePlayerStore = create((set, get) => ({
     if (selectedAnswer !== null) return; // Already answered
 
     get().clearTimer();
+    playClickSound(); // Click feedback
     set({ selectedAnswer: answer, validating: true });
 
     try {
@@ -107,6 +114,13 @@ export const useSinglePlayerStore = create((set, get) => ({
         nextQuestion,
       } = data.data;
 
+      // Play sound based on result
+      if (correct) {
+        playCorrectSound();
+      } else {
+        playWrongSound();
+      }
+
       set({
         showResult: true,
         validating: false,
@@ -116,6 +130,10 @@ export const useSinglePlayerStore = create((set, get) => ({
 
       // Auto-advance after delay
       setTimeout(() => {
+        // Check if session still exists (user might have left)
+        const { sessionId: currentSessionId } = get();
+        if (!currentSessionId) return;
+
         if (isGameOver) {
           get().endGame();
         } else {
@@ -141,11 +159,14 @@ export const useSinglePlayerStore = create((set, get) => ({
 
   // Time ran out
   timeUp: async () => {
-    const { selectedAnswer, sessionId, currentIndex, questions } = get();
-    if (selectedAnswer !== null) return;
+    const { selectedAnswer, sessionId, currentIndex, questions, showResult } =
+      get();
+    // Don't skip if already answered or already showing result
+    if (selectedAnswer !== null || showResult) return;
 
     get().clearTimer();
-    set({ selectedAnswer: null, validating: true });
+    playTimeoutSound(); // Play timeout sound
+    set({ validating: true });
 
     try {
       const response = await fetch(`/api/singleplayer/${sessionId}/skip`, {
@@ -157,6 +178,14 @@ export const useSinglePlayerStore = create((set, get) => ({
       const data = await response.json();
 
       if (!data.success) {
+        // If it's a "wrong question index" error, the question was likely already handled
+        // Just try to get the current state and move on
+        if (data.error?.includes("Wrong question index")) {
+          console.warn("Question already handled, moving to next");
+          // Force end game check or try to recover
+          get().endGame();
+          return;
+        }
         throw new Error(data.error);
       }
 
@@ -169,7 +198,18 @@ export const useSinglePlayerStore = create((set, get) => ({
         validating: false,
       });
 
+      set({
+        showResult: true,
+        correctAnswer,
+        score: totalScore,
+        validating: false,
+      });
+
       setTimeout(() => {
+        // Check if session still exists (user might have left)
+        const { sessionId: currentSessionId, gameOver: isGameOver } = get();
+        if (!currentSessionId || isGameOver) return;
+
         if (isGameOver) {
           get().endGame();
         } else {
