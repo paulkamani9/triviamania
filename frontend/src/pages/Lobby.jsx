@@ -37,8 +37,13 @@ export default function Lobby() {
   const [chatMessage, setChatMessage] = useState("");
   const [copied, setCopied] = useState(false);
   const chatEndRef = useRef(null);
+  const prevMessageCountRef = useRef(0);
 
   const isLeader = userId === leaderId;
+
+  // Calculate connected players count
+  const connectedPlayers = players.filter((p) => p.connected);
+  const connectedCount = connectedPlayers.length;
 
   // Redirect if no room
   useEffect(() => {
@@ -54,9 +59,12 @@ export default function Lobby() {
     }
   }, [status, navigate]);
 
-  // Scroll chat to bottom
+  // Scroll chat to bottom only when new messages arrive (not on initial load)
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > prevMessageCountRef.current) {
+      chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+    prevMessageCountRef.current = messages.length;
   }, [messages]);
 
   const handleCopyCode = () => {
@@ -113,6 +121,15 @@ export default function Lobby() {
             <span className="font-semibold">{players.length}/8</span>
           </div>
         </div>
+
+        {/* Share Instructions */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-center text-sm text-dark-400 -mt-2"
+        >
+          Share this code with your friends to play together!
+        </motion.p>
 
         {/* Players List */}
         <motion.div
@@ -218,10 +235,13 @@ export default function Lobby() {
               variant="accent"
               className="w-full"
               onClick={handleStartGame}
-              disabled={players.length < 2}
+              disabled={connectedCount < 2}
             >
               <Play className="w-5 h-5 mr-2" />
-              {players.length < 2 ? "Need 2+ Players" : "Start Game"}
+              {connectedCount < 2
+                ? `Need ${2 - connectedCount} More Connected`
+                : "Start Game"}
+            </Button>
             </Button>
           </motion.div>
         )}

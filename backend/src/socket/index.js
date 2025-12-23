@@ -74,6 +74,28 @@ export function setupSocketHandlers(io) {
 
     socket.on("join-room", async ({ roomCode, userId, username }) => {
       try {
+        // Check if room exists and get its status first
+        const existingRoom = await getRoom(roomCode);
+        if (existingRoom) {
+          // Check if this is a reconnecting player
+          const isExistingPlayer = existingRoom.players.some(
+            (p) => p.id === userId
+          );
+
+          // If game is in progress and user is NOT an existing player, reject
+          if (
+            !isExistingPlayer &&
+            (existingRoom.status === "playing" ||
+              existingRoom.status === "countdown")
+          ) {
+            return emitError(
+              socket,
+              "Game is in progress. Please wait until it ends.",
+              "GAME_IN_PROGRESS"
+            );
+          }
+        }
+
         const { room, reconnected } = await joinRoom(
           roomCode,
           userId,
@@ -191,6 +213,16 @@ export function setupSocketHandlers(io) {
             socket,
             "Only the leader can start the game",
             "NOT_LEADER"
+          );
+        }
+
+        // Require at least 2 connected players to start
+        const connectedPlayers = room.players.filter((p) => p.connected);
+        if (connectedPlayers.length < 2) {
+          return emitError(
+            socket,
+            "Need at least 2 connected players to start",
+            "NOT_ENOUGH_PLAYERS"
           );
         }
 
