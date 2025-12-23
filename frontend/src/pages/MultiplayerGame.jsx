@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Users, CheckCircle, Check, X } from "lucide-react";
+import { Trophy, Users, CheckCircle, Check, X, LogOut } from "lucide-react";
 import { useUserStore } from "../store/userStore";
 import { useGameStore } from "../store/gameStore";
 import { ROOM_STATUS, GAME_CONFIG } from "../constants";
@@ -288,21 +288,32 @@ export default function MultiplayerGame() {
       <div className="space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-dark-400 text-sm">Question</span>
-            <span className="font-semibold">
-              {currentQuestionIndex + 1}/{questions.length}
-            </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLeave}
+            className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
+          >
+            <LogOut className="w-4 h-4 mr-1" />
+            <span className="text-xs">Leave</span>
+          </Button>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1">
+              <span className="text-dark-400 text-xs">Q</span>
+              <span className="font-semibold text-sm">
+                {currentQuestionIndex + 1}/{questions.length}
+              </span>
+            </div>
+            <Timer
+              timeRemaining={timeRemaining}
+              totalTime={GAME_CONFIG.QUESTION_TIME_LIMIT}
+            />
           </div>
 
-          <Timer
-            timeRemaining={timeRemaining}
-            totalTime={GAME_CONFIG.QUESTION_TIME_LIMIT}
-          />
-
-          <div className="flex items-center gap-2 text-dark-400">
+          <div className="flex items-center gap-1 text-dark-400">
             <CheckCircle className="w-4 h-4" />
-            <span className="text-sm">
+            <span className="text-xs">
               {answeredCount}/{players.length}
             </span>
           </div>

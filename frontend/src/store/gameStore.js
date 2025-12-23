@@ -106,6 +106,12 @@ export const useGameStore = create((set, get) => ({
 
     // Game flow events
     socket.on("game-starting", (data) => {
+      // Reset player scores to 0 for new game
+      const players = get().players.map((p) => ({
+        ...p,
+        score: 0,
+        answered: false,
+      }));
       set({
         status: ROOM_STATUS.COUNTDOWN,
         countdown: 3,
@@ -115,6 +121,9 @@ export const useGameStore = create((set, get) => ({
         currentQuestionIndex: 0,
         messages: [],
         error: null,
+        players,
+        showResult: false,
+        correctAnswer: null,
       });
       // Countdown timer
       let count = 3;
