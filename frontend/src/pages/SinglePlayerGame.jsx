@@ -198,22 +198,23 @@ export default function SinglePlayerGame() {
                 {currentIndex + 1} / {totalQuestions}
               </p>
             </div>
-            {/* Pause button - only show when not showing result or validating */}
-            {!showResult && !validating && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={pauseGame}
-                className="ml-2"
-              >
-                <Pause className="w-5 h-5" />
-              </Button>
-            )}
           </div>
-          <div className="text-right">
+          {/* Score */}
+          <div className="text-center">
             <p className="text-sm text-dark-400">Score</p>
             <p className="font-display font-bold text-primary-400">{score}</p>
           </div>
+          {/* Pause button - only show when not showing result or validating */}
+          {!showResult && !validating && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={pauseGame}
+              
+            >
+              <Pause className="w-5 h-5" />
+            </Button>
+          )}
         </div>
 
         {/* Timer */}
