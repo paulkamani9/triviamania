@@ -34,6 +34,7 @@ export const useSinglePlayerStore = create((set, get) => ({
   gameOver: false,
   correctAnswer: null,
   validating: false, // True while waiting for server response
+  isPaused: false, // Pause state for mid-game pause
 
   // Results
   finalResults: null,
@@ -279,13 +280,16 @@ export const useSinglePlayerStore = create((set, get) => ({
     get().clearTimer();
 
     const interval = setInterval(() => {
-      const { timeRemaining, sessionId, gameOver } = get();
+      const { timeRemaining, sessionId, gameOver, isPaused } = get();
 
-      // Don't run if no session or game is over
+      // Don't run if no session, game is over, or paused
       if (!sessionId || gameOver) {
         get().clearTimer();
         return;
       }
+
+      // Skip countdown while paused
+      if (isPaused) return;
 
       if (timeRemaining <= 1) {
         get().timeUp();
@@ -294,6 +298,15 @@ export const useSinglePlayerStore = create((set, get) => ({
       }
     }, 1000);
     set({ timerInterval: interval });
+  },
+
+  // Pause/Resume for single-player
+  pauseGame: () => {
+    set({ isPaused: true });
+  },
+
+  resumeGame: () => {
+    set({ isPaused: false });
   },
 
   clearTimer: () => {
@@ -325,6 +338,7 @@ export const useSinglePlayerStore = create((set, get) => ({
       correctAnswer: null,
       finalResults: null,
       validating: false,
+      isPaused: false,
     });
   },
 }));

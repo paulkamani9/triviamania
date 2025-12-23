@@ -154,9 +154,39 @@ export function playClickSound() {
   }
 }
 
+/**
+ * Play countdown tick sound - for timer warnings (5, 4, 3, 2, 1)
+ */
+export function playTickSound() {
+  try {
+    const ctx = getAudioContext();
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    osc.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    // Short, crisp tick sound
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, now); // A5
+
+    gainNode.gain.setValueAtTime(0, now);
+    gainNode.gain.linearRampToValueAtTime(0.15, now + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+
+    osc.start(now);
+    osc.stop(now + 0.08);
+  } catch (e) {
+    console.warn("Could not play tick sound:", e);
+  }
+}
+
 export default {
   playCorrectSound,
   playWrongSound,
   playTimeoutSound,
   playClickSound,
+  playTickSound,
 };

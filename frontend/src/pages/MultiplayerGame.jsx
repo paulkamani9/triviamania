@@ -1,20 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Users, CheckCircle } from "lucide-react";
+import { Trophy, Users, CheckCircle, Check, X } from "lucide-react";
 import { useUserStore } from "../store/userStore";
 import { useGameStore } from "../store/gameStore";
 import { ROOM_STATUS, GAME_CONFIG } from "../constants";
 import PageTransition from "../components/PageTransition";
 import Button from "../components/Button";
 import Timer from "../components/Timer";
-
-// Decode HTML entities
-function decodeHTML(html) {
-  const textarea = document.createElement("textarea");
-  textarea.innerHTML = html;
-  return textarea.value;
-}
+import {
+  playCorrectSound,
+  playWrongSound,
+  playTimeoutSound,
+} from "../utils/sounds";
 
 export default function MultiplayerGame() {
   const navigate = useNavigate();
@@ -27,6 +25,8 @@ export default function MultiplayerGame() {
     players,
     timeRemaining,
     countdown,
+    showResult,
+    correctAnswer,
     submitAnswer,
     playAgain,
     leaveRoom,
@@ -35,17 +35,38 @@ export default function MultiplayerGame() {
 
   const [selectedAnswer, setSelectedAnswer] = useState(null);
   const [hasAnswered, setHasAnswered] = useState(false);
+  const soundPlayedRef = useRef(false);
 
   const currentQuestion = questions[currentQuestionIndex];
   const isGameOver = status === ROOM_STATUS.FINISHED;
   const isPlaying = status === ROOM_STATUS.PLAYING;
+  const isResults = status === ROOM_STATUS.RESULTS;
   const isCountdown = status === ROOM_STATUS.COUNTDOWN;
 
   // Reset answer state on question change
   useEffect(() => {
     setSelectedAnswer(null);
     setHasAnswered(false);
+    soundPlayedRef.current = false;
   }, [currentQuestionIndex]);
+
+  // Play sound when results are shown
+  useEffect(() => {
+    if (showResult && correctAnswer && !soundPlayedRef.current) {
+      soundPlayedRef.current = true;
+
+      if (selectedAnswer === null) {
+        // Didn't answer in time
+        playTimeoutSound();
+      } else if (selectedAnswer === correctAnswer) {
+        // Answered correctly
+        playCorrectSound();
+      } else {
+        // Answered incorrectly
+        playWrongSound();
+      }
+    }
+  }, [showResult, correctAnswer, selectedAnswer]);
 
   // Redirect if no room
   useEffect(() => {
@@ -55,7 +76,7 @@ export default function MultiplayerGame() {
   }, [roomCode, navigate]);
 
   const handleSelectAnswer = (answer) => {
-    if (hasAnswered || !isPlaying) return;
+    if (hasAnswered || !isPlaying || showResult) return;
 
     setSelectedAnswer(answer);
     setHasAnswered(true);
@@ -64,6 +85,7 @@ export default function MultiplayerGame() {
 
   const handlePlayAgain = () => {
     playAgain(roomCode);
+    navigate(`/multiplayer/lobby`);
   };
 
   const handleLeave = () => {
@@ -295,10 +317,10 @@ export default function MultiplayerGame() {
             className="card"
           >
             <p className="text-xs text-dark-400 mb-2">
-              {decodeHTML(currentQuestion.category)}
+              {currentQuestion.category}
             </p>
             <h2 className="text-lg font-semibold leading-relaxed">
-              {decodeHTML(currentQuestion.question)}
+              {currentQuestion.question}
             </h2>
           </motion.div>
         )}
@@ -314,42 +336,166 @@ export default function MultiplayerGame() {
           >
             {currentQuestion.answers.map((answer, index) => {
               const isSelected = selectedAnswer === answer;
+              const isCorrect = showResult && answer === correctAnswer;
+              const isWrong =
+                showResult && isSelected && answer !== correctAnswer;
               const letter = String.fromCharCode(65 + index);
 
+              // Determine button styling based on state
+              let buttonClass = "bg-dark-800 border border-dark-600";
+              let letterClass = "bg-dark-700 text-dark-400";
+
+              if (showResult) {
+                if (isCorrect) {
+                  buttonClass =
+                    "bg-accent-500/20 border-2 border-accent-400 answer-correct";
+                  letterClass = "bg-accent-500 text-white";
+                } else if (isWrong) {
+                  buttonClass =
+                    "bg-red-500/20 border-2 border-red-400 answer-incorrect";
+                  letterClass = "bg-red-500 text-white";
+                } else {
+                  buttonClass = "bg-dark-800 border border-dark-700 opacity-50";
+                }
+              } else if (isSelected) {
+                buttonClass = "bg-primary-600/30 border border-primary-500";
+                letterClass = "bg-primary-600 text-white";
+              } else if (!hasAnswered) {
+                buttonClass =
+                  "bg-dark-800 hover:bg-dark-700 border border-dark-600 hover:border-primary-500";
+              }
+
               return (
-                <button
+                <motion.button
                   key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{
+                    opacity: 1,
+                    y: 0,
+                    scale: showResult && isCorrect ? [1, 1.02, 1] : 1,
+                  }}
+                  transition={{
+                    delay: index * 0.05,
+                    scale: { duration: 0.3, ease: "easeOut" },
+                  }}
                   onClick={() => handleSelectAnswer(answer)}
-                  disabled={hasAnswered}
-                  className={`w-full p-4 rounded-xl text-left transition-all flex items-center gap-3
+                  disabled={hasAnswered || showResult}
+                  className={`w-full p-4 rounded-xl text-left transition-all flex items-center gap-3 ${buttonClass}
                     ${
-                      !hasAnswered
-                        ? "bg-dark-800 hover:bg-dark-700 border border-dark-600 hover:border-primary-500"
-                        : isSelected
-                        ? "bg-primary-600/30 border border-primary-500"
-                        : "bg-dark-800 border border-dark-700 opacity-50"
-                    }
-                  `}
+                      hasAnswered || showResult
+                        ? "cursor-default"
+                        : "cursor-pointer"
+                    }`}
                 >
                   <span
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold
-                    ${
-                      isSelected
-                        ? "bg-primary-600 text-white"
-                        : "bg-dark-700 text-dark-400"
-                    }`}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-semibold ${letterClass}`}
                   >
                     {letter}
                   </span>
-                  <span className="flex-1">{decodeHTML(answer)}</span>
-                  {isSelected && (
+                  <span className="flex-1">{answer}</span>
+
+                  {/* Show checkmark for correct answer */}
+                  {showResult && isCorrect && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 15,
+                      }}
+                    >
+                      <Check className="w-5 h-5 text-accent-400" />
+                    </motion.div>
+                  )}
+
+                  {/* Show X for wrong selected answer */}
+                  {showResult && isWrong && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0 }}
+                      animate={{
+                        opacity: 1,
+                        scale: 1,
+                        rotate: [0, -10, 10, 0],
+                      }}
+                      transition={{
+                        type: "spring",
+                        stiffness: 500,
+                        damping: 15,
+                      }}
+                    >
+                      <X className="w-5 h-5 text-red-400" />
+                    </motion.div>
+                  )}
+
+                  {/* Show checkmark when selected (before results) */}
+                  {!showResult && isSelected && (
                     <CheckCircle className="w-5 h-5 text-primary-400" />
                   )}
-                </button>
+                </motion.button>
               );
             })}
           </motion.div>
         )}
+
+        {/* Floating Result Overlay - appears after everyone answers */}
+        <AnimatePresence>
+          {showResult && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+              style={{ top: "30%" }}
+            >
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.8, opacity: 0, y: -20 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 25,
+                  duration: 0.3,
+                }}
+                className={`px-8 py-4 rounded-2xl shadow-2xl backdrop-blur-md ${
+                  selectedAnswer === correctAnswer
+                    ? "bg-accent-500/30 border-2 border-accent-400"
+                    : selectedAnswer === null
+                    ? "bg-yellow-500/30 border-2 border-yellow-400"
+                    : "bg-red-500/30 border-2 border-red-400"
+                }`}
+              >
+                <motion.div
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: [1, 1.1, 1] }}
+                  transition={{ duration: 0.3 }}
+                  className="text-center"
+                >
+                  <p
+                    className={`text-2xl font-bold ${
+                      selectedAnswer === correctAnswer
+                        ? "text-accent-300"
+                        : selectedAnswer === null
+                        ? "text-yellow-300"
+                        : "text-red-300"
+                    }`}
+                  >
+                    {selectedAnswer === correctAnswer
+                      ? "🎉 Correct!"
+                      : selectedAnswer === null
+                      ? "⏰ Time's up!"
+                      : "❌ Wrong!"}
+                  </p>
+                  <p className="text-sm text-dark-300 mt-1">
+                    Next question coming...
+                  </p>
+                </motion.div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Live Scoreboard */}
         <motion.div

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { getSocket, connectSocket, disconnectSocket } from "../services/socket";
 import { ROOM_STATUS, GAME_CONFIG } from "../constants";
+import { playClickSound, playTickSound } from "../utils/sounds";
 
 export const useGameStore = create((set, get) => ({
   // Connection state
@@ -20,6 +21,10 @@ export const useGameStore = create((set, get) => ({
   currentQuestionIndex: 0,
   timeRemaining: GAME_CONFIG.QUESTION_TIME_LIMIT,
   countdown: 3,
+
+  // Result state (for showing correct/wrong answers)
+  showResult: false,
+  correctAnswer: null,
 
   // Chat
   messages: [],
@@ -133,7 +138,7 @@ export const useGameStore = create((set, get) => ({
         difficulty: data.difficulty,
         answers: data.choices,
       };
-      // Reset player answered states
+      // Reset player answered states and result display
       const players = get().players.map((p) => ({ ...p, answered: false }));
       set({
         status: ROOM_STATUS.PLAYING,
@@ -141,6 +146,9 @@ export const useGameStore = create((set, get) => ({
         currentQuestionIndex: data.index,
         timeRemaining: data.timeLimit,
         players,
+        showResult: false,
+        correctAnswer: null,
+        lastAnswerCorrect: null,
       });
       get().startTimer();
     });
@@ -163,12 +171,19 @@ export const useGameStore = create((set, get) => ({
 
     socket.on("question-results", (data) => {
       get().clearTimer();
+
       // Update player scores from leaderboard
       const players = get().players.map((p) => {
         const playerScore = data.leaderboard.find((l) => l.userId === p.id);
         return playerScore ? { ...p, score: playerScore.score } : p;
       });
-      set({ players });
+
+      set({
+        players,
+        showResult: true,
+        correctAnswer: data.correctAnswer,
+        status: ROOM_STATUS.RESULTS,
+      });
     });
 
     socket.on("game-over", (data) => {
@@ -192,14 +207,31 @@ export const useGameStore = create((set, get) => ({
     return socket;
   },
 
-  // Timer management
+  // Timer management - robust like singlePlayerStore
   startTimer: () => {
+    // Clear any existing timer first
+    get().clearTimer();
+
     const interval = setInterval(() => {
-      const time = get().timeRemaining;
-      if (time <= 0) {
+      const { timeRemaining, status, showResult } = get();
+
+      // Stop timer if game is over or showing results
+      if (status === ROOM_STATUS.FINISHED || showResult) {
+        get().clearTimer();
+        return;
+      }
+
+      if (timeRemaining <= 0) {
         get().clearTimer();
       } else {
-        set({ timeRemaining: time - 1 });
+        const newTime = timeRemaining - 1;
+
+        // Play tick sound for last 5 seconds (like single-player)
+        if (newTime <= GAME_CONFIG.TIMER_WARNING && newTime > 0) {
+          playTickSound();
+        }
+
+        set({ timeRemaining: newTime });
       }
     }, 1000);
     set({ timerInterval: interval });
@@ -243,16 +275,22 @@ export const useGameStore = create((set, get) => ({
   submitAnswer: (roomCode, userId, answer) => {
     const socket = getSocket();
     const questionIndex = get().currentQuestionIndex;
+    playClickSound(); // Play click sound on answer selection
     socket.emit("submit-answer", { roomCode, userId, questionIndex, answer });
   },
 
   playAgain: (roomCode) => {
-    // Reset game state but stay in room
+    // Clear any running timer first
+    get().clearTimer();
+
+    // Reset game state completely, return to lobby
     set({
       status: ROOM_STATUS.LOBBY,
       questions: [],
       currentQuestionIndex: 0,
       timeRemaining: GAME_CONFIG.QUESTION_TIME_LIMIT,
+      showResult: false,
+      correctAnswer: null,
       players: get().players.map((p) => ({ ...p, score: 0, answered: false })),
     });
   },
@@ -286,6 +324,8 @@ export const useGameStore = create((set, get) => ({
       countdown: 3,
       messages: [],
       error: null,
+      showResult: false,
+      correctAnswer: null,
     });
   },
 

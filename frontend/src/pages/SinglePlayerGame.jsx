@@ -9,6 +9,8 @@ import {
   Home,
   Trophy,
   Loader2,
+  Pause,
+  Play,
 } from "lucide-react";
 import { useSinglePlayerStore } from "../store/singlePlayerStore";
 import { useUserStore } from "../store/userStore";
@@ -37,8 +39,11 @@ export default function SinglePlayerGame() {
     correctAnswer,
     finalResults,
     validating,
+    isPaused,
     startGame,
     submitAnswer,
+    pauseGame,
+    resumeGame,
     reset,
   } = useSinglePlayerStore();
 
@@ -186,11 +191,24 @@ export default function SinglePlayerGame() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
           </Link>
-          <div className="text-center">
-            <p className="text-sm text-dark-400">Question</p>
-            <p className="font-display font-bold">
-              {currentIndex + 1} / {totalQuestions}
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="text-center">
+              <p className="text-sm text-dark-400">Question</p>
+              <p className="font-display font-bold">
+                {currentIndex + 1} / {totalQuestions}
+              </p>
+            </div>
+            {/* Pause button - only show when not showing result or validating */}
+            {!showResult && !validating && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={pauseGame}
+                className="ml-2"
+              >
+                <Pause className="w-5 h-5" />
+              </Button>
+            )}
           </div>
           <div className="text-right">
             <p className="text-sm text-dark-400">Score</p>
@@ -386,6 +404,72 @@ export default function SinglePlayerGame() {
                     </p>
                   </motion.div>
                 )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Pause Modal Overlay */}
+        <AnimatePresence>
+          {isPaused && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-dark-900/80 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.8, opacity: 0 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                className="card text-center max-w-sm mx-4"
+              >
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.1, type: "spring", stiffness: 300 }}
+                  className="w-16 h-16 mx-auto mb-4 bg-primary-500/20 rounded-full flex items-center justify-center"
+                >
+                  <Pause className="w-8 h-8 text-primary-400" />
+                </motion.div>
+
+                <h2 className="text-2xl font-display font-bold mb-2">
+                  Game Paused
+                </h2>
+                <p className="text-dark-400 mb-6">
+                  Take your time. The timer is paused.
+                </p>
+
+                <div className="space-y-3">
+                  <Button
+                    variant="primary"
+                    className="w-full"
+                    onClick={resumeGame}
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Resume Game
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="w-full"
+                    onClick={() => {
+                      reset();
+                      navigate("/");
+                    }}
+                  >
+                    <Home className="w-4 h-4 mr-2" />
+                    Quit to Home
+                  </Button>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-dark-700">
+                  <p className="text-xs text-dark-500">
+                    Question {currentIndex + 1} of {totalQuestions} • Score:{" "}
+                    {score}
+                  </p>
+                </div>
               </motion.div>
             </motion.div>
           )}
