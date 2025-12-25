@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { GAME_CONFIG } from "../constants";
+import { apiFetch } from "../services/api";
 import {
   playCorrectSound,
   playWrongSound,
@@ -47,7 +48,7 @@ export const useSinglePlayerStore = create((set, get) => ({
     set({ loading: true, error: null, gameOver: false, finalResults: null });
 
     try {
-      const response = await fetch("/api/singleplayer/start", {
+      const response = await apiFetch("/api/singleplayer/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId, username, category, difficulty }),
@@ -94,7 +95,7 @@ export const useSinglePlayerStore = create((set, get) => ({
     set({ selectedAnswer: answer, validating: true });
 
     try {
-      const response = await fetch(`/api/singleplayer/${sessionId}/answer`, {
+      const response = await apiFetch(`/api/singleplayer/${sessionId}/answer`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ questionIndex: currentIndex, answer }),
@@ -177,7 +178,7 @@ export const useSinglePlayerStore = create((set, get) => ({
     set({ validating: true });
 
     try {
-      const response = await fetch(`/api/singleplayer/${sessionId}/skip`, {
+      const response = await apiFetch(`/api/singleplayer/${sessionId}/skip`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ questionIndex: currentIndex }),
@@ -246,7 +247,7 @@ export const useSinglePlayerStore = create((set, get) => ({
     get().clearTimer();
 
     try {
-      const response = await fetch(`/api/singleplayer/${sessionId}/end`, {
+      const response = await apiFetch(`/api/singleplayer/${sessionId}/end`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
       });

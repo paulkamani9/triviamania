@@ -1,6 +1,7 @@
 import { io } from "socket.io-client";
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
+// Use VITE_API_URL for both socket and API calls - empty string for dev (proxied by Vite)
+const SOCKET_URL = import.meta.env.VITE_API_URL || "";
 
 let socket = null;
 

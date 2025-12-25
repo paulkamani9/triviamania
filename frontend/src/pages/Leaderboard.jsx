@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, Trophy, Medal, Award, User, Loader2 } from "lucide-react";
 import { useUserStore } from "../store/userStore";
+import { apiFetch } from "../services/api";
 import PageTransition from "../components/PageTransition";
 import Button from "../components/Button";
 
@@ -19,14 +20,14 @@ export default function Leaderboard() {
         setLoading(true);
 
         // Fetch top 100
-        const res = await fetch("/api/leaderboard");
+        const res = await apiFetch("/api/leaderboard");
         if (!res.ok) throw new Error("Failed to fetch leaderboard");
         const data = await res.json();
         setLeaderboard(data.data || []);
 
         // Fetch user rank if authenticated
         if (isAuthenticated && userId) {
-          const rankRes = await fetch(`/api/leaderboard/user/${userId}`);
+          const rankRes = await apiFetch(`/api/leaderboard/user/${userId}`);
           if (rankRes.ok) {
             const rankData = await rankRes.json();
             setUserRank(rankData.data);
