@@ -242,7 +242,6 @@ export default function Lobby() {
                 ? `Need ${2 - connectedCount} More Connected`
                 : "Start Game"}
             </Button>
-            </Button>
           </motion.div>
         )}
 

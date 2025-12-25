@@ -97,9 +97,31 @@ export default function MultiplayerGame() {
   // Get sorted players by score
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
 
+  // Calculate ranks with ties (same score = same rank, next rank skips)
+  const getRanks = (players) => {
+    const ranks = {};
+    let currentRank = 1;
+
+    players.forEach((player, index) => {
+      if (index === 0) {
+        ranks[player.id] = 1;
+      } else if (player.score === players[index - 1].score) {
+        // Same score as previous player, same rank
+        ranks[player.id] = ranks[players[index - 1].id];
+      } else {
+        // Different score, rank = position + 1
+        ranks[player.id] = index + 1;
+      }
+    });
+
+    return ranks;
+  };
+
+  const playerRanks = getRanks(sortedPlayers);
+
   // Get current player
   const currentPlayer = players.find((p) => p.id === userId);
-  const currentPlayerRank = sortedPlayers.findIndex((p) => p.id === userId) + 1;
+  const currentPlayerRank = playerRanks[userId] || 1;
 
   // Count answered players
   const answeredCount = players.filter((p) => p.answered).length;
@@ -159,7 +181,9 @@ export default function MultiplayerGame() {
                   {sortedPlayers[1].username}
                 </span>
                 <div className="w-20 h-24 bg-dark-700 rounded-t-lg flex flex-col items-center justify-center">
-                  <span className="text-2xl font-bold text-dark-300">2</span>
+                  <span className="text-2xl font-bold text-dark-300">
+                    {playerRanks[sortedPlayers[1].id]}
+                  </span>
                   <span className="text-sm text-dark-400">
                     {sortedPlayers[1].score}
                   </span>
@@ -180,7 +204,9 @@ export default function MultiplayerGame() {
                   {sortedPlayers[0].username}
                 </span>
                 <div className="w-24 h-32 bg-primary-600 rounded-t-lg flex flex-col items-center justify-center">
-                  <span className="text-3xl font-bold">1</span>
+                  <span className="text-3xl font-bold">
+                    {playerRanks[sortedPlayers[0].id]}
+                  </span>
                   <span className="text-sm">{sortedPlayers[0].score}</span>
                 </div>
               </motion.div>
@@ -198,7 +224,9 @@ export default function MultiplayerGame() {
                   {sortedPlayers[2].username}
                 </span>
                 <div className="w-20 h-20 bg-dark-800 rounded-t-lg flex flex-col items-center justify-center">
-                  <span className="text-2xl font-bold text-dark-400">3</span>
+                  <span className="text-2xl font-bold text-dark-400">
+                    {playerRanks[sortedPlayers[2].id]}
+                  </span>
                   <span className="text-sm text-dark-500">
                     {sortedPlayers[2].score}
                   </span>
@@ -230,7 +258,7 @@ export default function MultiplayerGame() {
           >
             <h3 className="text-sm text-dark-400 mb-3">All Players</h3>
             <div className="space-y-2">
-              {sortedPlayers.map((player, index) => (
+              {sortedPlayers.map((player) => (
                 <div
                   key={player.id}
                   className={`flex items-center justify-between p-2 rounded-lg
@@ -240,7 +268,7 @@ export default function MultiplayerGame() {
                 >
                   <div className="flex items-center gap-2">
                     <span className="w-6 text-dark-400 text-sm">
-                      #{index + 1}
+                      #{playerRanks[player.id]}
                     </span>
                     <span
                       className={
